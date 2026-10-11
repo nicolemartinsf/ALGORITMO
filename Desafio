@@ -1,0 +1,687 @@
+Algoritmo "DESAFIO"
+
+Const
+   // Limites do sistema
+   MAX_LIVROS = 40
+   MAX_CATEGORIAS = 5
+
+   // Categorias dos livros
+   TECNOLOGIA = 1
+   EXATAS = 2
+   HUMANAS = 3
+   NEGOCIOS = 4
+   LITERATURA = 5
+   
+   // Tipo de movimenta��o
+   EMPRESTIMO = 1
+   DEVOLUCAO = 2
+   
+   // Status de disponibilidade
+   DISPONIVEL = 1
+   INDISPONIVEL = 0
+   
+Tipo
+    // Cria um registro com as informa��es necess�rias de um livro
+    Livro = registro
+          codigo: inteiro
+          titulo: caractere
+          autor: caractere
+          ano: inteiro
+          categoria: inteiro
+          qtdTotal: inteiro
+          qtdDisponivel: inteiro
+          qtdEmprestimos: inteiro
+          status: inteiro
+    fimregistro
+    
+Var
+   // Globais: compartilhadas por v�rias sub-rotinas do sistema
+   qtdLivros, opcao: inteiro   // qtdLivros = posi��es usadas do acervo; opcao = escolha do menu
+   acervo: vetor[1..MAX_LIVROS] de Livro   // vetor de registros com todos os livros
+   movimentacoes: vetor[1..MAX_CATEGORIAS, 1..2] de inteiro   // linhas = categorias; colunas = EMPRESTIMO e DEVOLUCAO
+
+// Prepara os dados do sistema antes de come�ar a execu��o
+procedimento Inicializar()
+Var
+   i, j: inteiro
+
+Inicio
+             qtdLivros <- 0
+             // Zera os registros de movimenta��o no in�cio do programa
+             para i de 1 ate MAX_CATEGORIAS faca
+                  para j de 1 ate 2 faca
+                       movimentacoes[i, j] <- 0
+                  fimpara
+             fimpara
+fimprocedimento
+
+// Busca sequencial pelo c�digo. Recebe o c�digo por par�metro e retorna a posi��o no vetor (0 = n�o existe)
+funcao BuscarLivro(codigoBusca: inteiro): inteiro
+Var
+   i, resultado: inteiro
+
+Inicio
+      resultado <- 0   // 0 = n�o encontrado
+      i <- 1
+
+       // Percorre o acervo at� achar o c�digo ou acabar os livros
+       enquanto (i <= qtdLivros) e (resultado = 0) faca
+                se acervo[i].codigo = codigoBusca entao
+                   resultado <- i
+                fimse
+                i <- i + 1
+       fimenquanto
+
+       retorne resultado
+fimfuncao
+
+// Retorna quantos exemplares do livro na posi��o informada est�o emprestados agora (qtdTotal - qtdDisponivel)
+funcao QuantidadeEmprestada(posicao: inteiro): inteiro
+Inicio
+      retorne acervo[posicao].qtdTotal - acervo[posicao].qtdDisponivel
+fimfuncao
+
+// Busca bin�ria recursiva (o acervo precisa estar ordenado por c�digo).
+// ini e limite delimitam o intervalo pesquisado, que cai pela metade a cada chamada. Retorna a posi��o ou 0.
+funcao BuscarRecursivo(codigoBusca, ini, limite: inteiro): inteiro
+Var
+   meio, resultado: inteiro
+
+Inicio
+      resultado <- 0   // 0 = n�o encontrado
+
+      // Caso-base 1: se ini > limite, n�o h� mais posi��es para pesquisar
+      // e a fun��o retorna 0 (n�o encontrado) sem fazer nova chamada
+      se ini <= limite entao
+         meio <- (ini + limite) \ 2
+
+         // Caso-base 2: o c�digo foi encontrado na posi��o do meio
+         se acervo[meio].codigo = codigoBusca entao
+            resultado <- meio
+         senao
+              // Chamada recursiva na metade inferior ou na superior
+              se codigoBusca < acervo[meio].codigo entao
+                 resultado <- BuscarRecursivo(codigoBusca, ini, meio - 1)
+              senao
+                   resultado <- BuscarRecursivo(codigoBusca, meio + 1, limite)
+              fimse
+         fimse
+      fimse
+
+      retorne resultado
+fimfuncao
+
+procedimento CadastrarLivro()
+Var
+   posicao, codigoNovo: inteiro
+   duplicado: logico
+
+Inicio
+      // Verifica se ainda h� espa�o para cadastrar um novo livro
+      se qtdLivros >= MAX_LIVROS entao
+         escreval ("Limite de livros cadastrados atingido")
+      senao
+           posicao <- qtdLivros + 1
+
+           // O c�digo fica em codigoNovo e s� vai para o acervo depois de validado,
+           // assim a BuscarLivro compara apenas com os livros j� cadastrados
+           repita
+                 escreva ("Digite o c�digo do livro: ")
+                 leia(codigoNovo)
+
+                 se BuscarLivro(codigoNovo) <> 0 entao
+                    duplicado <- verdadeiro
+                    escreval ("Esse c�digo j� est� cadastrado! Digite outro.")
+                 senao
+                      duplicado <- falso
+                 fimse
+
+           ate nao duplicado
+
+           acervo[posicao].codigo <- codigoNovo
+
+           escreva("Digite o t�tulo do livro: ")
+           leia(acervo[posicao].titulo)
+
+           escreva("Digite o autor do livro: ")
+           leia(acervo[posicao].autor)
+
+           // Garante que o ano informado seja v�lido
+           repita
+                 escreva ("Digite o ano do livro: ")
+                 leia(acervo[posicao].ano)
+
+                 se acervo[posicao].ano <= 0 entao
+                    escreval ("O ano deve ser maior que zero!")
+                 fimse
+
+           ate acervo[posicao].ano > 0
+
+           // Garante que a categoria esteja entre 1 e 5
+           repita
+                 escreva ("Digite o n�mero da categoria (1-Tecnologia, 2-Exatas, 3-Humanas, 4-Neg�cios, 5-Literatura): ")
+                 leia(acervo[posicao].categoria)
+
+                 se (acervo[posicao].categoria <= 0) ou (acervo[posicao].categoria >= 6) entao
+                    escreval ("A categoria deve estar entre 1 e 5!")
+                 fimse
+
+           ate (acervo[posicao].categoria >= 1) e (acervo[posicao].categoria <= 5)
+
+           // Garante que exista pelo menos um exemplar
+           repita
+                 escreva ("Digite a quantidade de exemplares do livro: ")
+                 leia(acervo[posicao].qtdTotal)
+
+                 se acervo[posicao].qtdTotal <= 0 entao
+                    escreval ("A quantidade deve ser maior que zero!")
+                 fimse
+
+           ate acervo[posicao].qtdTotal > 0
+
+           // Define os dados iniciais do livro ap�s o cadastro
+           acervo[posicao].qtdDisponivel <- acervo[posicao].qtdTotal
+           acervo[posicao].qtdEmprestimos <- 0
+           acervo[posicao].status <- DISPONIVEL
+
+           // Atualiza a quantidade de livros cadastrados
+           qtdLivros <- qtdLivros + 1
+      fimse
+fimprocedimento
+
+procedimento ListarAcervo()
+Var
+   i: inteiro
+
+Inicio
+      // Verifica se existem livros cadastrados
+      se qtdLivros = 0 entao
+         escreval ("Acervo vazio")
+      senao
+           // Percorre todos os livros cadastrados
+           para i de 1 ate qtdLivros faca
+                escreval ("C�digo: ", acervo[i].codigo)
+                escreval ("T�tulo: ", acervo[i].titulo)
+                escreval ("Autor: ", acervo[i].autor)
+                escreval ("Ano: ", acervo[i].ano)
+                escreval ("Categoria: ", acervo[i].categoria)
+                escreval ("Quantidade Total: ", acervo[i].qtdTotal)
+                escreval ("Dispon�veis: ", acervo[i].qtdDisponivel)
+                escreval ("Empr�stimos : ", acervo[i].qtdEmprestimos)
+                
+                se acervo[i].status = DISPONIVEL entao
+                   escreval ("Status: Dispon�vel")
+                senao
+                     escreval ("Status: Indispon�vel")
+                fimse
+                
+                escreval ("------------------------------")
+           fimpara
+      fimse
+fimprocedimento
+
+procedimento ConsultarLivro()
+Var
+   codigoBusca, posicao: inteiro
+
+Inicio
+      // N�o h� o que consultar se o acervo estiver vazio
+      se qtdLivros = 0 entao
+         escreval ("Acervo vazio")
+      senao
+           escreva ("Digite o c�digo do livro: ")
+           leia(codigoBusca)
+
+           // Guarda a posi��o retornada pela fun��o (0 = n�o encontrado)
+           posicao <- BuscarLivro(codigoBusca)
+
+           // Mostra os dados somente se o livro foi encontrado
+           se posicao <> 0 entao
+              escreval ("C�digo: ", acervo[posicao].codigo)
+              escreval ("T�tulo: ", acervo[posicao].titulo)
+              escreval ("Autor: ", acervo[posicao].autor)
+              escreval ("Ano: ", acervo[posicao].ano)
+              escreval ("Categoria: ", acervo[posicao].categoria)
+              escreval ("Quantidade Total: ", acervo[posicao].qtdTotal)
+              escreval ("Dispon�veis: ", acervo[posicao].qtdDisponivel)
+              escreval ("Empr�stimos : ", acervo[posicao].qtdEmprestimos)
+
+              se acervo[posicao].status = DISPONIVEL entao
+                 escreval ("Status: Dispon�vel")
+              senao
+                   escreval ("Status: Indispon�vel")
+              fimse
+           senao
+                escreval ("O c�digo n�o foi encontrado!")
+           fimse
+      fimse
+fimprocedimento
+
+procedimento RealizarEmprestimo()
+Var
+   codigoBusca, posicao: inteiro
+
+Inicio
+      // N�o h� o que emprestar se o acervo estiver vazio
+      se qtdLivros = 0 entao
+         escreval ("Acervo vazio")
+      senao
+           escreva ("Digite o c�digo do livro: ")
+           leia(codigoBusca)
+
+           // Guarda a posi��o retornada pela fun��o (0 = n�o encontrado)
+           posicao <- BuscarLivro(codigoBusca)
+
+           se posicao = 0 entao
+              escreval ("O c�digo n�o foi encontrado!")
+           senao
+                // Verifica se h� exemplares dispon�veis para empr�stimo
+                se (acervo[posicao].qtdDisponivel > 0) e (acervo[posicao].status = DISPONIVEL) entao
+
+                   // Atualiza os dados ap�s realizar o empr�stimo
+                   acervo[posicao].qtdDisponivel <- acervo[posicao].qtdDisponivel - 1
+                   acervo[posicao].qtdEmprestimos <- acervo[posicao].qtdEmprestimos + 1
+
+                   // Registra o empr�stimo na matriz (linha = categoria do livro, coluna = EMPRESTIMO)
+                   movimentacoes[acervo[posicao].categoria, EMPRESTIMO] <- movimentacoes[acervo[posicao].categoria, EMPRESTIMO] + 1
+
+                   // Altera o status quando n�o houver mais exemplares dispon�veis
+                   se acervo[posicao].qtdDisponivel = 0 entao
+                      acervo[posicao].status <- INDISPONIVEL
+                   fimse
+
+                senao
+                     escreval ("N�o h� exemplares dispon�veis para empr�stimo!")
+                fimse
+           fimse
+      fimse
+fimprocedimento
+
+procedimento RealizarDevolucao()
+Var
+   codigoBusca, posicao: inteiro
+
+Inicio
+      // N�o h� o que devolver se o acervo estiver vazio
+      se qtdLivros = 0 entao
+         escreval ("Acervo vazio")
+      senao
+           escreva ("Digite o c�digo do livro: ")
+           leia(codigoBusca)
+
+           posicao <- BuscarLivro(codigoBusca)
+
+           se posicao = 0 entao
+              escreval ("O c�digo n�o foi encontrado!")
+           senao
+                // S� aceita a devolu��o se houver algum exemplar emprestado
+                se QuantidadeEmprestada(posicao) > 0 entao
+                   acervo[posicao].qtdDisponivel <- acervo[posicao].qtdDisponivel + 1
+                   acervo[posicao].status <- DISPONIVEL
+
+                   // Registra a devolu��o na matriz (linha = categoria do livro, coluna = DEVOLUCAO)
+                   movimentacoes[acervo[posicao].categoria, DEVOLUCAO] <- movimentacoes[acervo[posicao].categoria, DEVOLUCAO] + 1
+                senao
+                     escreval ("N�o h� exemplares emprestados para devolver!")
+                fimse
+           fimse
+      fimse
+fimprocedimento
+
+procedimento ExibirLivrosDisponiveis()
+Var
+   i: inteiro
+   temDisponivel: logico
+   
+Inicio
+      temDisponivel <- falso
+      
+      // Verifica quais livros possuem exemplares dispon�veis
+      para i de 1 ate qtdLivros faca
+           se acervo[i].qtdDisponivel > 0 entao
+              temDisponivel <- verdadeiro
+              escreval ("C�digo: ", acervo[i].codigo)
+              escreval ("T�tulo: ", acervo[i].titulo)
+              escreval ("Dispon�veis: ", acervo[i].qtdDisponivel)
+           fimse
+      fimpara
+      
+      // Informa caso nenhum livro esteja dispon�vel
+      se temDisponivel = falso entao
+         escreval ("N�o h� livros dispon�veis!")
+      fimse
+fimprocedimento
+
+procedimento ExibirRanking()
+Var
+   aux: Livro
+   i, j: inteiro
+   trocar: logico
+
+Inicio
+      // Bubble Sort com tr�s crit�rios: mais empr�stimos, menos dispon�veis e t�tulo em ordem alfab�tica
+      para i de qtdLivros ate 2 passo -1 faca
+           para j de 1 ate i - 1 faca
+                
+                trocar <- falso
+                
+                // Maior quantidade de empr�stimos primeiro
+                se acervo[j].qtdEmprestimos < acervo[j+1].qtdEmprestimos entao
+                   trocar <- verdadeiro
+                senao
+                     // Desempate: menor quantidade dispon�vel primeiro
+                     se acervo[j].qtdEmprestimos = acervo[j+1].qtdEmprestimos entao
+                        se acervo[j].qtdDisponivel > acervo[j+1].qtdDisponivel entao
+                           trocar <- verdadeiro
+                           
+                        senao
+                             // Segundo desempate: t�tulo em ordem alfab�tica
+                             se acervo[j].qtdDisponivel = acervo[j+1].qtdDisponivel entao
+                                se acervo[j].titulo > acervo[j+1].titulo entao
+                                   trocar <- verdadeiro
+                                fimse
+                             fimse
+                        fimse
+                     fimse
+                fimse
+                
+                   // Troca o registro completo, para os dados do livro continuarem associados
+                   se trocar entao
+                   aux <- acervo[j]
+                   acervo[j] <- acervo[j+1]
+                   acervo[j+1] <- aux
+                fimse
+           fimpara
+      fimpara
+      
+      // Exibe os livros ap�s a ordena��o
+      para i de 1 ate qtdLivros faca
+           escreval("")
+           escreval("========== ", i, "� LUGAR ==========")
+           escreval ("Livro: ", acervo[i].titulo)
+           escreval ("Autor: ", acervo[i].autor)
+           escreval ("Empr�stimos: ", acervo[i].qtdEmprestimos)
+           escreval ("Dispon�veis: ", acervo[i].qtdDisponivel)
+           escreval("==============================")
+      fimpara
+fimprocedimento
+
+procedimento ExibirMatriz()
+Var
+   i, k: inteiro
+   nome: caractere
+
+Inicio
+      escreval ("CATEGORIA                 EMPR�STIMOS  DEVOLU��ES")
+
+      // Percorre cada categoria (linha) da matriz
+      para i de 1 ate MAX_CATEGORIAS faca
+           escolha i
+                   caso TECNOLOGIA
+                        nome <- "Tecnologia"
+                   caso EXATAS
+                        nome <- "Ci�ncias Exatas"
+                   caso HUMANAS
+                        nome <- "Ci�ncias Humanas"
+                   caso NEGOCIOS
+                        nome <- "Adm. e Neg�cios"
+                   caso LITERATURA
+                        nome <- "Literatura"
+           fimescolha
+
+           escreva (nome)
+
+           // Completa com espa�os at� a coluna 26, para os n�meros ficarem alinhados
+           para k de 1 ate 26 - compr(nome) faca
+                escreva (" ")
+           fimpara
+
+           // Colunas: 1 = EMPRESTIMO, 2 = DEVOLUCAO, com largura fixa
+           escreval (movimentacoes[i, EMPRESTIMO]:11, movimentacoes[i, DEVOLUCAO]:12)
+      fimpara
+fimprocedimento
+
+procedimento Estatisticas()
+Var
+   i, j, totalMovimentacoes, totalExemplares, totalDisponiveis, totalEmprestados, totalEmprestimos, totalDevolucoes: inteiro
+   percentualDisponiveis, percentualEmprestados, mediaExemplares: real
+   maiorEmprestimos, posicaoMaiorEmprestimos, maiorDisponiveis, posicaoMaiorDisponiveis: inteiro
+   qtdLivrosCategoria: vetor[1..MAX_CATEGORIAS] de inteiro
+   qtdEmprestimosCategoria: vetor[1..MAX_CATEGORIAS] de inteiro
+   qtdDevolucoesCategoria: vetor[1..MAX_CATEGORIAS] de inteiro
+   maiorEmprestimosCategoria, posicaoMaiorEmprestimosCategoria: inteiro
+   
+Inicio
+      // Inicializa os contadores e acumuladores das estat�sticas
+      totalExemplares <- 0
+      totalDisponiveis <- 0
+      totalEmprestados <- 0
+      totalEmprestimos <- 0
+      totalDevolucoes <- 0
+      totalMovimentacoes <- 0
+      maiorEmprestimos <- 0
+      maiorDisponiveis <- 0
+      maiorEmprestimosCategoria <- 0
+
+      
+      
+      // Define a primeira posi��o como refer�ncia para encontrar os maiores valores
+      se qtdLivros > 0 entao
+         posicaoMaiorEmprestimos <- 1
+         posicaoMaiorDisponiveis <- 1
+      fimse
+      
+      posicaoMaiorEmprestimosCategoria <- 1
+      
+      // Soma os dados de todos os livros cadastrados
+      para i de 1 ate qtdLivros faca
+           totalExemplares <- totalExemplares + acervo[i].qtdTotal
+           totalDisponiveis <- totalDisponiveis + acervo[i].qtdDisponivel
+           totalEmprestados <- totalEmprestados + QuantidadeEmprestada(i)
+           totalEmprestimos <- totalEmprestimos + acervo[i].qtdEmprestimos
+      fimpara
+      
+      // Soma as devolu��es registradas em todas as categorias
+      para i de 1 ate MAX_CATEGORIAS faca
+           totalDevolucoes <- totalDevolucoes + movimentacoes[i, DEVOLUCAO]
+      fimpara
+      
+      // Soma todas as movimenta��es registradas na matriz
+      para i de 1 ate MAX_CATEGORIAS faca
+           para j de 1 ate 2 faca
+                totalMovimentacoes <- totalMovimentacoes + movimentacoes[i,j]
+           fimpara
+      fimpara
+      
+      // Calcula os percentuais somente quando existem exemplares cadastrados
+      se totalExemplares > 0 entao
+         percentualDisponiveis <- (100 * totalDisponiveis) / totalExemplares
+         percentualEmprestados <- (100 * totalEmprestados) / totalExemplares
+      senao
+           percentualDisponiveis <- 0
+           percentualEmprestados <- 0
+      fimse
+      
+      // Calcula a m�dia de exemplares por livro
+      se qtdLivros > 0 entao
+         mediaExemplares <- totalExemplares / qtdLivros
+      senao
+           mediaExemplares <- 0
+      fimse
+      
+      // Identifica os livros com maior n�mero de empr�stimos e maior disponibilidade
+      para i de 1 ate qtdLivros faca
+           se acervo[i].qtdEmprestimos > maiorEmprestimos entao
+              maiorEmprestimos <- acervo[i].qtdEmprestimos
+              posicaoMaiorEmprestimos <- i
+           fimse
+           se acervo[i].qtdDisponivel > maiorDisponiveis entao
+              maiorDisponiveis <- acervo[i].qtdDisponivel
+              posicaoMaiorDisponiveis <- i
+           fimse
+      fimpara
+
+      // Zera o contador de livros de cada categoria
+      para i de 1 ate MAX_CATEGORIAS faca
+           qtdLivrosCategoria[i] <- 0
+      fimpara
+
+      // Conta quantos livros pertencem a cada categoria
+      para i de 1 ate qtdLivros faca
+           qtdLivrosCategoria[acervo[i].categoria] <- qtdLivrosCategoria[acervo[i].categoria] + 1
+      fimpara
+      
+      // Obt�m os totais de empr�stimos e devolu��es por categoria
+      para i de 1 ate MAX_CATEGORIAS faca
+           qtdEmprestimosCategoria[i] <- movimentacoes[i, EMPRESTIMO]
+           qtdDevolucoesCategoria[i] <- movimentacoes[i, DEVOLUCAO]
+      fimpara
+      
+      // Identifica a categoria com maior n�mero de empr�stimos
+      para i de 1 ate MAX_CATEGORIAS faca
+           se qtdEmprestimosCategoria[i] > maiorEmprestimosCategoria entao
+              maiorEmprestimosCategoria <- qtdEmprestimosCategoria[i]
+              posicaoMaiorEmprestimosCategoria <- i
+           fimse
+      fimpara
+      
+      // Exibe os resultados das estat�sticas calculadas
+      escreval ("Quantidade de livros cadastrados: ", qtdLivros)
+      escreval ("Quantidade total de exemplares: ", totalExemplares)
+      escreval ("Quantidade de exemplares dispon�veis: ", totalDisponiveis)
+      escreval ("Quantidade de exemplares emprestados: ", totalEmprestados)
+      escreval ("Quantidade total de empr�stimos: ", totalEmprestimos)
+      escreval ("Quantidade total de devolu��es: ", totalDevolucoes)
+      escreval ("Percentual de exemplares dispon�veis: ", percentualDisponiveis, "%")
+      escreval ("Percentual de exemplares emprestados: ", percentualEmprestados, "%")
+      escreval ("M�dia de exemplares por livro: ", mediaExemplares)
+      
+      
+      // Verifica se existem livros cadastrados antes de exibir os maiores valores
+      se qtdLivros > 0 entao
+         escreval ("Livro com maior n�mero de empr�stimos: ", acervo[posicaoMaiorEmprestimos].titulo, " (", maiorEmprestimos, " empr�stimos)")
+         escreval ("Livro com maior quantidade dispon�vel: ", acervo[posicaoMaiorDisponiveis].titulo, " (", maiorDisponiveis, " dispon�veis)")
+      senao
+           escreval("N�o h� livros cadastrados.")
+      fimse
+      
+      escreval ("Tecnologia: ", qtdLivrosCategoria[TECNOLOGIA], " livros | ", qtdEmprestimosCategoria[TECNOLOGIA], " empr�stimos | ", qtdDevolucoesCategoria[TECNOLOGIA], " devolu��es")
+      escreval ("Exatas: ", qtdLivrosCategoria[EXATAS], " livros | ", qtdEmprestimosCategoria[EXATAS], " empr�stimos | ", qtdDevolucoesCategoria[EXATAS], " devolu��es")
+      escreval ("Humanas: ", qtdLivrosCategoria[HUMANAS], " livros | ", qtdEmprestimosCategoria[HUMANAS], " empr�stimos | ", qtdDevolucoesCategoria[HUMANAS], " devolu��es")
+      escreval ("Neg�cios: ", qtdLivrosCategoria[NEGOCIOS], " livros | ", qtdEmprestimosCategoria[NEGOCIOS], " empr�stimos | ", qtdDevolucoesCategoria[NEGOCIOS], " devolu��es")
+      escreval ( "Literatura: ", qtdLivrosCategoria[LITERATURA], " livros | ", qtdEmprestimosCategoria[LITERATURA], " empr�stimos | ", qtdDevolucoesCategoria[LITERATURA], " devolu��es")
+      escreval ("Categoria com maior n�mero de empr�stimos: ")
+      
+      // Mostra o nome da categoria que teve mais empr�stimos
+      escolha posicaoMaiorEmprestimosCategoria
+              caso TECNOLOGIA
+                   escreval("Tecnologia (", maiorEmprestimosCategoria, " empr�stimos)")
+              caso EXATAS
+                   escreval("Exatas (", maiorEmprestimosCategoria, " empr�stimos)")
+              caso HUMANAS
+                   escreval("Humanas (", maiorEmprestimosCategoria, " empr�stimos)")
+              caso NEGOCIOS
+                   escreval("Neg�cios (", maiorEmprestimosCategoria, " empr�stimos)")
+              caso LITERATURA
+                   escreval("Literatura (", maiorEmprestimosCategoria, " empr�stimos)")
+      fimescolha
+      
+      ExibirMatriz()
+      escreval("Quantidade total de movimenta��es: ", totalMovimentacoes)
+fimprocedimento
+
+procedimento OrdenarPorCodigo()
+Var
+   i, j: inteiro
+   aux: Livro
+   
+Inicio
+      // Bubble Sort pelo c�digo, em ordem crescente
+      para i de qtdLivros ate 2 passo -1 faca
+           para j de 1 ate i - 1 faca
+                se acervo[j].codigo > acervo[j+1].codigo entao
+                   // Troca o registro completo, para os dados do livro continuarem associados
+                   aux <- acervo[j]
+                   acervo[j] <- acervo[j+1]
+                   acervo[j+1] <- aux
+                fimse
+           fimpara
+      fimpara
+fimprocedimento
+
+procedimento RealizarBuscaRecursiva()
+Var
+   codigoBusca, posicao: inteiro
+
+Inicio
+   se qtdLivros = 0 entao
+      escreval ("Acervo vazio")
+   senao
+        escreva("Digite o c�digo do livro: ")
+        leia(codigoBusca)
+
+        // Ordena o acervo antes da busca recursiva
+        OrdenarPorCodigo()
+
+        // Inicia a busca considerando todo o acervo
+        posicao <- BuscarRecursivo(codigoBusca, 1, qtdLivros)
+
+        se posicao = 0 entao
+           escreval("O c�digo n�o foi encontrado!")
+        senao
+             escreval("Livro encontrado!")
+             escreval("C�digo: ", acervo[posicao].codigo)
+             escreval("T�tulo: ", acervo[posicao].titulo)
+             escreval("Autor: ", acervo[posicao].autor)
+        fimse
+   fimse
+fimprocedimento
+
+Inicio
+      Inicializar()
+
+      repita
+            escreval ("===== UNILIBRARY - SISTEMA DE GERENCIAMENTO DE BIBLIOTECA =====")
+            escreval ("1 - Cadastrar livro")
+            escreval ("2 - Listar acervo")
+            escreval ("3 - Consultar livro")
+            escreval ("4 - Realizar empr�stimo")
+            escreval ("5 - Realizar devolu��o")
+            escreval ("6 - Exibir livros dispon�veis")
+            escreval ("7 - Exibir ranking do acervo")
+            escreval ("8 - Exibir estat�sticas")
+            escreval ("9 - Realizar busca recursiva")
+            escreval ("10 - Encerrar sistema")
+            leia (opcao)
+            
+      // Executa a opera��o escolhida pelo usu�rio
+      escolha opcao
+              caso 1
+                   CadastrarLivro()
+              caso 2
+                   ListarAcervo()
+              caso 3
+                   ConsultarLivro()
+              caso 4
+                   RealizarEmprestimo()
+              caso 5
+                   RealizarDevolucao()
+              caso 6
+                   ExibirLivrosDisponiveis()
+              caso 7
+                   ExibirRanking()
+              caso 8
+                   Estatisticas()
+              caso 9
+                   RealizarBuscaRecursiva()
+              caso 10
+                   escreva ("Sistema encerrado.")
+              // Trata op��es que n�o existem no menu
+              outrocaso
+                       escreval ("Op��o inv�lida!")
+      fimescolha
+      
+      // Repete o menu at� o usu�rio escolher encerrar o sistema
+      ate opcao = 10
+
+Fimalgoritmo
